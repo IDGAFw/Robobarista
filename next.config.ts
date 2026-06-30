@@ -1,10 +1,11 @@
-// next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export', // Это превращает проект в статический HTML/CSS/JS
+  output: 'export',
+  // Указываем подпапку, в которой живет проект на GitHub Pages
+  basePath: '/Robobarista', 
   images: {
-    unoptimized: true, // Нужно, так как стандартный Image компонент требует сервер для оптимизации
+    unoptimized: true,
   },
 };
 
