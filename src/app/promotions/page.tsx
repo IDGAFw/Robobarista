@@ -238,7 +238,6 @@ function PromoCard({ item, delay }: { item: Promo; delay: number }) {
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-orange-500 transition-transform duration-700 group-hover:scale-x-100" />
 
-      {/* Если новость — особая шапка */}
       {item.isNews ? (
         <div className="border-b border-zinc-100 px-5 pt-5 pb-4">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -356,7 +355,6 @@ function Pagination({
 
   return (
     <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-      {/* Назад */}
       <button
         onClick={() => onChange(current - 1)}
         disabled={current === 1}
@@ -382,7 +380,6 @@ function Pagination({
         </button>
       ))}
 
-      {/* Вперёд */}
       <button
         onClick={() => onChange(current + 1)}
         disabled={current === total}
@@ -401,6 +398,7 @@ export default function PromotionsPage() {
   const [filter, setFilter] = useState<Category>('all');
   const [page, setPage] = useState(1);
   const hero = useReveal<HTMLDivElement>();
+  const filtersReveal = useReveal<HTMLDivElement>(); // Добавлен хук для фильтров
   const gridRef = useRef<HTMLDivElement | null>(null);
 
   const filtered = ALL_ITEMS.filter(p => filter === 'all' || p.category === filter);
@@ -414,7 +412,6 @@ export default function PromotionsPage() {
 
   const handlePage = (p: number) => {
     setPage(p);
-    // плавно скроллим к сетке на мобильном
     gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -437,8 +434,13 @@ export default function PromotionsPage() {
             </p>
           </div>
 
-          {/* Фильтры — горизонтальный скролл на мобильном */}
-          <div className="mb-6 sm:mb-10">
+          {/* Фильтры с анимацией */}
+          <div 
+            ref={filtersReveal.ref}
+            className={`mb-6 sm:mb-10 transition-all duration-700 delay-150 ${
+              filtersReveal.visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+            }`}
+          >
             <div className="flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:gap-3">
               {FILTERS.map((f) => (
                 <button
@@ -455,7 +457,6 @@ export default function PromotionsPage() {
                 </button>
               ))}
             </div>
-            {/* Подпись сколько найдено */}
             <p className="mt-3 font-mono text-xs text-zinc-400">
               {filtered.length === 0 ? 'Ничего не найдено' : `${filtered.length} ${filtered.length === 1 ? 'позиция' : filtered.length < 5 ? 'позиции' : 'позиций'} · стр. ${page} из ${totalPages}`}
             </p>

@@ -1,20 +1,15 @@
 // src/lib/auth.ts
 //
 // ВРЕМЕННЫЙ слой авторизации на localStorage — пока нет бэкенда.
-// Когда появится API, нужно заменить тело этих 4 функций на fetch-запросы
-// к серверу (например POST /api/auth/login, /api/auth/register) и переложить
-// сессию в httpOnly-cookie. Сигнатуры функций можно оставить теми же —
-// компоненты (auth/page.tsx, profile/page.tsx) их не меняют.
 
 export type User = {
   name: string;
   phone: string;
-  email?: string;
+  email: string;
   password: string; // ВАЖНО: в реальном проекте пароль никогда не хранится в открытом виде
+  newsletter: boolean;
   createdAt: string;
 };
-
-
 
 const USERS_KEY = 'roboBarista:users';
 const SESSION_KEY = 'roboBarista:session';
@@ -32,11 +27,21 @@ function writeUsers(users: User[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-export function registerUser(input: { name: string; phone: string; password: string }) {
+export function registerUser(input: { 
+  name: string; 
+  phone: string; 
+  email: string;
+  password: string;
+  newsletter: boolean;
+}) {
   const users = readUsers();
   if (users.some((u) => u.phone === input.phone)) {
-    return { ok: false as const, error: 'Этот номер уже зарегистрирован' };
+    return { ok: false as const, error: 'Этот номер телефона уже зарегистрирован' };
   }
+  if (users.some((u) => u.email === input.email)) {
+    return { ok: false as const, error: 'Этот email уже зарегистрирован' };
+  }
+  
   const user: User = { ...input, createdAt: new Date().toISOString() };
   writeUsers([...users, user]);
   localStorage.setItem(SESSION_KEY, user.phone);
@@ -66,15 +71,21 @@ export function getCurrentUser(): User | null {
 
 export function updateUser(updates: Partial<User>): User | null {
   if (typeof window === 'undefined') return null;
-  const current = localStorage.getItem('robo_user');
-  if (!current) return null;
+  const phone = localStorage.getItem(SESSION_KEY);
+  if (!phone) return null;
 
-  try {
-    const user: User = JSON.parse(current);
-    const updatedUser = { ...user, ...updates };
-    localStorage.setItem('robo_user', JSON.stringify(updatedUser));
-    return updatedUser;
-  } catch {
-    return null;
+  const users = readUsers();
+  const userIndex = users.findIndex((u) => u.phone === phone);
+  if (userIndex === -1) return null;
+
+  const updatedUser = { ...users[userIndex], ...updates };
+  users[userIndex] = updatedUser;
+  writeUsers(users);
+
+  // Если был обновлен телефон, обновляем и сессию
+  if (updates.phone) {
+    localStorage.setItem(SESSION_KEY, updates.phone);
   }
+
+  return updatedUser;
 }

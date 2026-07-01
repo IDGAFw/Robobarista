@@ -1,12 +1,13 @@
 /**
  * Catalog Page — zinc-50 / orange-500
- * Добавлена серверная пагинация + сохранена вся логика избранного
+ * Интегрирован Framer Motion для плавных переходов фильтров и пагинации
  */
 
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Heart, SlidersHorizontal, ArrowRight, Sparkles, UserCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Footer from '@/components/layout/footer';
 import { getCurrentUser } from '@/lib/auth';
@@ -39,26 +40,10 @@ export const CATALOG_DB: Product[] = [
 
 const PAGE_SIZE = 8;
 
-function useReveal<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
-    }, { threshold: 0.05 });
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
-}
-
 // Компонент пагинации
 function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
   if (total <= 1) return null;
 
-  // Показываем не больше 5 страниц с «…»
   const range: (number | '…')[] = [];
   if (total <= 5) {
     for (let i = 1; i <= total; i++) range.push(i);
@@ -147,9 +132,15 @@ export default function CatalogPage() {
 
   const handleFilter = (type: string) => { setActiveType(type); setPage(1); };
   const handleSize   = (size: string) => { setActiveSize(size);  setPage(1); };
-  const handlePage   = (p: number)    => {
+  
+  const handlePage = (p: number) => {
     setPage(p);
-    setTimeout(() => gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    // Плавный и точный скролл к началу сетки с учетом высоты хедера
+    if (gridRef.current) {
+      const yOffset = -110; 
+      const y = gridRef.current.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -196,68 +187,120 @@ export default function CatalogPage() {
                 ))}
               </div>
               {activeType !== 'favorites' && (
-                <span className="shrink-0 font-mono text-[10px] text-zinc-400">
-                  {filtered.length} поз. · стр. {page}/{totalPages}
+                <span className="shrink-0 font-mono text-[10px] text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-md">
+                  Найдено: <strong className="text-zinc-800">{filtered.length}</strong> поз.
                 </span>
               )}
             </div>
           </div>
 
-          {/* Контент */}
-          <div ref={gridRef} className="scroll-mt-24">
-            {activeType === 'favorites' && !isLoggedIn ? (
-              <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white px-4 py-20 text-center shadow-sm animate-[fadeUp_0.4s_ease-out_both]">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-zinc-50/50" />
-                <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-100 opacity-60 blur-[80px]" />
-                <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-orange-100 bg-white text-4xl shadow-md">❤️</div>
-                <h2 className="relative mb-3 text-2xl font-extrabold text-zinc-900 sm:text-3xl">Секретный раздел</h2>
-                <p className="relative mb-8 max-w-sm text-sm leading-relaxed text-zinc-500">
-                  Для добавления в избранное <strong className="text-zinc-900">войдите или зарегистрируйтесь</strong>.
-                </p>
-                <Link href="/auth" className="relative flex h-12 items-center gap-2 rounded-xl bg-orange-500 px-8 font-mono text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 active:scale-95">
-                  <UserCircle className="h-5 w-5" /> Авторизоваться
-                </Link>
-              </div>
+          {/* Контентная зона с фиксированным min-h, чтобы страница не "прыгала" вверх при исчезновении карточек */}
+          <div ref={gridRef} className="scroll-mt-24 min-h-[480px]">
+            <AnimatePresence mode="wait">
+              {activeType === 'favorites' && !isLoggedIn ? (
+                <motion.div 
+                  key="auth-prompt"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25 }}
+                  className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border border-zinc-200 bg-white px-4 py-20 text-center shadow-sm"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-zinc-50/50" />
+                  <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-100 opacity-60 blur-[80px]" />
+                  <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-orange-100 bg-white text-4xl shadow-md">❤️</div>
+                  <h2 className="relative mb-3 text-2xl font-extrabold text-zinc-900 sm:text-3xl">Секретный раздел</h2>
+                  <p className="relative mb-8 max-w-sm text-sm leading-relaxed text-zinc-500">
+                    Для добавления в избранное <strong className="text-zinc-900">войдите или зарегистрируйтесь</strong>.
+                  </p>
+                  <Link href="/auth" className="relative flex h-12 items-center gap-2 rounded-xl bg-orange-500 px-8 font-mono text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-600 active:scale-95">
+                    <UserCircle className="h-5 w-5" /> Авторизоваться
+                  </Link>
+                </motion.div>
 
-            ) : activeType === 'favorites' && filtered.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-zinc-200 bg-white py-16 text-center animate-[fadeUp_0.5s_ease-out]">
-                <div className="mb-4 text-5xl animate-bounce [animation-duration:3s]">💔</div>
-                <h3 className="text-base font-bold text-zinc-900">В избранном пока пусто</h3>
-                <p className="mt-1.5 text-xs text-zinc-500">Отмечайте сердечком любимые напитки.</p>
-                <button onClick={() => handleFilter('all')} className="mt-5 h-10 rounded-xl bg-zinc-900 px-5 font-mono text-xs font-bold text-white transition-colors hover:bg-zinc-800 active:scale-95">
-                  Вернуться в меню
-                </button>
-              </div>
+              ) : activeType === 'favorites' && filtered.length === 0 ? (
+                <motion.div 
+                  key="empty-favorites"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25 }}
+                  className="rounded-3xl border border-dashed border-zinc-200 bg-white py-16 text-center"
+                >
+                  <div className="mb-4 text-5xl animate-bounce [animation-duration:3s]">💔</div>
+                  <h3 className="text-base font-bold text-zinc-900">В избранном пока пусто</h3>
+                  <p className="mt-1.5 text-xs text-zinc-500">Отмечайте сердечком любимые напитки.</p>
+                  <button onClick={() => handleFilter('all')} className="mt-5 h-10 rounded-xl bg-zinc-900 px-5 font-mono text-xs font-bold text-white transition-colors hover:bg-zinc-800 active:scale-95">
+                    Вернуться в меню
+                  </button>
+                </motion.div>
 
-            ) : paged.length > 0 ? (
-              <>
-                <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
-                  {paged.map((product, i) => (
-                    <CatalogCard key={product.id} product={product} delay={i * 40}
-                      isFav={favorites.includes(product.id)} onFavToggle={() => toggleFavorite(product.id)} />
+              ) : paged.length > 0 ? (
+                /* Уникальный key заставляет AnimatePresence перезапускать анимацию каскада элементов при любых изменениях */
+                <motion.div
+                  key={`grid-${activeType}-${activeSize}-${page}`}
+                  initial="hidden"
+                  animate="show"
+                  exit="exit"
+                  variants={{
+                    hidden: { opacity: 0 },
+                    show: {
+                      opacity: 1,
+                      transition: { staggerChildren: 0.04 } // Карточки появляются поочередно с микрозадержкой
+                    },
+                    exit: { 
+                      opacity: 0, 
+                      y: -10, 
+                      transition: { duration: 0.18, ease: "easeIn" } 
+                    }
+                  }}
+                  className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4"
+                >
+                  {paged.map((product) => (
+                    <motion.div
+                      key={product.id}
+                      variants={{
+                        hidden: { opacity: 0, y: 20 },
+                        show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 22 } }
+                      }}
+                      className="h-full"
+                    >
+                      <CatalogCard 
+                        product={product} 
+                        isFav={favorites.includes(product.id)} 
+                        onFavToggle={() => toggleFavorite(product.id)} 
+                      />
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
 
-                {/* Пагинация */}
-                {totalPages > 1 && (
-                  <div className="mt-10 flex flex-col items-center gap-3">
-                    <Pagination current={page} total={totalPages} onChange={handlePage} />
-                    <p className="font-mono text-xs text-zinc-400">
-                      Показано {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} из {filtered.length}
-                    </p>
-                  </div>
-                )}
-              </>
+              ) : (
+                <motion.div 
+                  key="empty-search"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25 }}
+                  className="rounded-3xl border border-dashed border-zinc-200 bg-white py-16 text-center"
+                >
+                  <div className="mb-4 text-5xl animate-bounce [animation-duration:3s]">🤖</div>
+                  <h3 className="text-base font-bold text-zinc-900">По вашему запросу ничего не найдено</h3>
+                  <p className="mt-1.5 text-xs text-zinc-500">Сбросьте фильтры, чтобы вернуть стандартную выдачу.</p>
+                  <button onClick={() => { handleFilter('all'); handleSize('all'); }}
+                    className="mt-5 h-10 rounded-xl bg-orange-50 px-5 font-mono text-xs font-bold text-orange-600 transition-colors hover:bg-orange-100 active:scale-95">
+                    Сбросить фильтры
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            ) : (
-              <div className="rounded-3xl border border-dashed border-zinc-200 bg-white py-16 text-center animate-[fadeUp_0.5s_ease-out]">
-                <div className="mb-4 text-5xl animate-bounce [animation-duration:3s]">🤖</div>
-                <h3 className="text-base font-bold text-zinc-900">По вашему запросу ничего не найдено</h3>
-                <p className="mt-1.5 text-xs text-zinc-500">Сбросьте фильтры, чтобы вернуть стандартную выдачу.</p>
-                <button onClick={() => { handleFilter('all'); handleSize('all'); }}
-                  className="mt-5 h-10 rounded-xl bg-orange-50 px-5 font-mono text-xs font-bold text-orange-600 transition-colors hover:bg-orange-100 active:scale-95">
-                  Сбросить фильтры
-                </button>
+            {/* Пагинация вынесена за пределы AnimatePresence, чтобы кнопки управления не исчезали и не дергались при перелистывании страниц */}
+            {paged.length > 0 && totalPages > 1 && (
+              <div className="mt-10 flex flex-col items-center gap-3">
+                <Pagination current={page} total={totalPages} onChange={handlePage} />
+                <p className="font-mono text-xs text-zinc-400">
+                  Показано {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} из {filtered.length}
+                </p>
               </div>
             )}
           </div>
@@ -267,29 +310,23 @@ export default function CatalogPage() {
 
       <style jsx global>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes heartBeat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
-        @media (prefers-reduced-motion:reduce) { *{ animation-duration:0.001ms!important; transition-duration:0.001ms!important; } }
+        @media (prefers-reduced-motion:reduce) { * { animation-duration:0.001ms!important; transition-duration:0.001ms!important; } }
       `}</style>
     </div>
   );
 }
 
-interface CardProps { product: Product; delay: number; isFav: boolean; onFavToggle: () => void; }
+interface CardProps { product: Product; isFav: boolean; onFavToggle: () => void; }
 
-function CatalogCard({ product, delay, isFav, onFavToggle }: CardProps) {
-  const { ref, visible } = useReveal<HTMLDivElement>();
+function CatalogCard({ product, isFav, onFavToggle }: CardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Link href={`/catalog/${product.id}`} passHref className="block h-full">
       <div
-        ref={ref}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        style={{ transitionDelay: visible ? `${delay}ms` : '0ms' }}
-        className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3.5 shadow-sm transition-all duration-700 ease-out hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-xl sm:p-5 ${
-          visible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
-        }`}
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-xl sm:p-5"
       >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-[2.5px] origin-center scale-x-0 bg-gradient-to-r from-transparent via-orange-500 to-transparent transition-transform duration-500 group-hover:scale-x-100" />
 

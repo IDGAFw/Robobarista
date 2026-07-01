@@ -1,4 +1,3 @@
-// src/app/auth/page.tsx
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
@@ -8,6 +7,41 @@ import { loginUser, registerUser } from '@/lib/auth';
 
 type Mode = 'login' | 'register';
 type Status = 'idle' | 'loading' | 'success';
+
+// Валидатор пароля
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return 'Пароль должен быть не менее 8 символов';
+  if (!/[a-zа-я]/.test(password)) return 'Добавьте хотя бы одну строчную (маленькую) букву';
+  if (!/[A-ZА-Я]/.test(password)) return 'Добавьте хотя бы одну заглавную букву';
+  if (!/[0-9]/.test(password)) return 'Добавьте хотя бы одну цифру';
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Добавьте хотя бы один спецсимвол';
+  return null;
+}
+
+// Форматирование номера телефона (Маска)
+function formatPhoneNumber(value: string): string {
+  if (!value) return '';
+
+  // Очищаем от всего, кроме цифр и плюса
+  const cleaned = value.replace(/[^\d+]/g, '');
+  const digits = cleaned.replace(/\D/g, '');
+
+  // Если остались только не-цифры (например, пользователь ввел только '+')
+  if (!digits) return cleaned === '+' ? '+' : '';
+
+  // Если это Казахстан или Россия (начинается с 7 или 8)
+  if (['7', '8'].includes(digits[0])) {
+    let res = '+7';
+    if (digits.length > 1) res += ` (${digits.substring(1, 4)}`;
+    if (digits.length >= 5) res += `) ${digits.substring(4, 7)}`;
+    if (digits.length >= 8) res += ` ${digits.substring(7, 9)}`;
+    if (digits.length >= 10) res += ` ${digits.substring(9, 11)}`;
+    return res;
+  }
+
+  // Для других стран (оставляем плюс и вводимые цифры)
+  return `+${digits}`;
+}
 
 function FloatingInput({
   id,
@@ -77,16 +111,18 @@ export default function AuthPage() {
   const [mounted, setMounted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // login
+  // login states
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
-  // register
+  // register states
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agree, setAgree] = useState(false);
+  const [newsletter, setNewsletter] = useState(false);
 
   const mismatch = mode === 'register' && confirm && regPassword !== confirm
     ? 'Пароли не совпадают'
@@ -97,15 +133,22 @@ export default function AuthPage() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (mismatch || status === 'loading') return;
+
+    if (mode === 'register') {
+      const pwdError = validatePassword(regPassword);
+      if (pwdError) {
+        setFormError(pwdError);
+        return;
+      }
+    }
+
     setFormError(null);
     setStatus('loading');
 
-    // Имитация сетевой задержки — сама проверка идёт через lib/auth (localStorage-заглушка)
     setTimeout(() => {
-      const result =
-        mode === 'login'
-          ? loginUser({ phone, password })
-          : registerUser({ name, phone: regPhone, password: regPassword });
+      const result = mode === 'login'
+        ? loginUser({ phone, password })
+        : registerUser({ name, phone: regPhone, email, password: regPassword, newsletter });
 
       if (!result.ok) {
         setFormError(result.error);
@@ -123,6 +166,13 @@ export default function AuthPage() {
     setStatus('idle');
     setFormError(null);
     setMode(next);
+  };
+
+  // Обработчик изменения телефона (с маской)
+  const handlePhoneChange = (val: string, isLogin: boolean) => {
+    const formatted = formatPhoneNumber(val);
+    if (isLogin) setPhone(formatted);
+    else setRegPhone(formatted);
   };
 
   return (
@@ -228,7 +278,10 @@ export default function AuthPage() {
               className="animate-[fadeUp_0.4s_ease-out] space-y-4"
             >
               {mode === 'register' && (
-                <FloatingInput id="name" label="Имя" value={name} onChange={setName} autoComplete="name" />
+                <>
+                  <FloatingInput id="name" label="Имя" value={name} onChange={setName} autoComplete="name" />
+                  <FloatingInput id="email" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
+                </>
               )}
 
               <FloatingInput
@@ -236,7 +289,8 @@ export default function AuthPage() {
                 label="Номер телефона"
                 type="tel"
                 value={mode === 'login' ? phone : regPhone}
-                onChange={mode === 'login' ? setPhone : setRegPhone}
+                // Используем наш обработчик:
+                onChange={(val) => handlePhoneChange(val, mode === 'login')}
                 autoComplete="tel"
               />
 
@@ -277,15 +331,26 @@ export default function AuthPage() {
                   </a>
                 </div>
               ) : (
-                <label className="flex items-start gap-2 pt-1 text-sm text-zinc-500">
-                  <input
-                    type="checkbox"
-                    checked={agree}
-                    onChange={(e) => setAgree(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-orange-500 focus:ring-orange-400"
-                  />
-                  Согласен с условиями использования и обработкой данных
-                </label>
+                <div className="flex flex-col gap-3 pt-1">
+                  <label className="flex items-start gap-2 text-sm text-zinc-500">
+                    <input
+                      type="checkbox"
+                      checked={agree}
+                      onChange={(e) => setAgree(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-orange-500 focus:ring-orange-400"
+                    />
+                    Согласен с условиями использования и обработкой данных
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-zinc-500">
+                    <input
+                      type="checkbox"
+                      checked={newsletter}
+                      onChange={(e) => setNewsletter(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-orange-500 focus:ring-orange-400"
+                    />
+                    Получать новости и акции на email
+                  </label>
+                </div>
               )}
 
               <button

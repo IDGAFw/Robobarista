@@ -200,7 +200,6 @@ function NewsModal({ item, onClose }: { item: NewsItem; onClose: () => void }) {
     };
   }, []);
 
-  // Свайп вниз для закрытия на мобильных
   const touchStartY = useRef(0);
   const [dragY, setDragY] = useState(0);
   const dragging = useRef(false);
@@ -242,7 +241,6 @@ function NewsModal({ item, onClose }: { item: NewsItem; onClose: () => void }) {
             : 'animate-[sheetIn_0.25s_ease-out] sm:animate-[popIn_0.25s_ease-out]'
         }`}
       >
-        {/* Ручка для свайпа — только на мобильных */}
         <div className="flex shrink-0 justify-center pb-1 pt-2.5 sm:hidden">
           <span className="h-1.5 w-10 rounded-full bg-zinc-300" />
         </div>
@@ -297,12 +295,11 @@ function NewsModal({ item, onClose }: { item: NewsItem; onClose: () => void }) {
 function HeroCard({ item, onOpen }: { item: NewsItem; onOpen: (item: NewsItem) => void }) {
   const { ref, visible } = useReveal<HTMLDivElement>();
   return (
-    <div ref={ref} className={`mb-8 sm:mb-10 transition-all duration-700 ${visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+    <div ref={ref} className={`mb-8 sm:mb-10 transition-all duration-700 delay-100 ${visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
       <div className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
         <span className="pointer-events-none absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-orange-500 transition-transform duration-700 group-hover:scale-x-100" />
 
         <div className="flex flex-col sm:flex-row">
-          {/* Эмодзи-плашка */}
           <div className="flex h-32 w-full shrink-0 items-center justify-center bg-gradient-to-br from-orange-50 to-zinc-50 text-6xl sm:h-auto sm:w-56 sm:text-8xl">
             {item.img}
           </div>
@@ -349,13 +346,11 @@ function NewsCard({ item, delay, onOpen }: { item: NewsItem; delay: number; onOp
       >
         <span className="pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-orange-500 transition-transform duration-700 group-hover:scale-x-100" />
 
-        {/* Верхняя часть с эмодзи */}
         <div className="flex h-28 w-full items-center justify-center bg-gradient-to-br from-zinc-50 to-orange-50/30 text-6xl transition-transform duration-500 group-hover:scale-105 sm:h-32">
           {item.img}
         </div>
 
         <div className="flex flex-1 flex-col p-4 sm:p-5">
-          {/* Метки */}
           <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase sm:text-[10px] ${TAG_COLORS[item.tag]}`}>
               {TAG_LABELS[item.tag]}
@@ -387,7 +382,10 @@ export default function NewsPage() {
   const [tag, setTag] = useState<NewsTag>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<NewsItem | null>(null);
+  
+  // Наши рефы для анимаций
   const hero = useReveal<HTMLDivElement>();
+  const filtersReveal = useReveal<HTMLDivElement>(); // Добавили реф для фильтров
   const gridRef = useRef<HTMLDivElement | null>(null);
 
   const pinned = NEWS.find(n => n.pinned);
@@ -423,8 +421,13 @@ export default function NewsPage() {
           {/* Закреплённая новость */}
           {pinned && (tag === 'all' || pinned.tag === tag) && <HeroCard item={pinned} onOpen={setSelected} />}
 
-          {/* Фильтры */}
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          {/* Фильтры (теперь с анимацией) */}
+          <div 
+            ref={filtersReveal.ref}
+            className={`mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 transition-all duration-700 delay-150 ${
+              filtersReveal.visible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+            }`}
+          >
             <div className="flex items-center gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:gap-3 sm:pb-0 [&::-webkit-scrollbar]:hidden">
               {tags.map(([key, label]) => (
                 <button
