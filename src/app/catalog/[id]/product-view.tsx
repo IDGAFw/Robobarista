@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, ShoppingBag, Check, UserCircle, X,
-  Minus, Plus, ImagePlus, Trash2, Sparkles
+  Minus, Plus, ImagePlus, Trash2, Sparkles, AlertTriangle
 } from 'lucide-react';
 import Footer from '@/components/layout/footer';
 import { getCurrentUser } from '@/lib/auth';
@@ -25,6 +25,51 @@ const SYRUP_OPTIONS = [
 const SUGAR_LEVELS = ['Без сахара', 'Мало', 'Стандарт', 'Много', 'Очень сладко'];
 const PRINT_PRICE = 100;
 const MAX_CUPS = 6;
+
+// Функция для сжатия фото прямо в браузере
+function compressImage(file: File, maxWidth = 500, maxHeight = 500, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Сохраняем пропорции
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        // Экспортируем в JPEG сжатого качества
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Ошибка при обработке изображения'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+    reader.readAsDataURL(file);
+  });
+}
 
 interface ProductViewProps {
   product: {
@@ -61,23 +106,18 @@ export default function ProductView({ product }: ProductViewProps) {
   const [cups, setCups] = useState<CupConfig[]>([]);
 
   const basePrice = product.price + SIZE_MULTIPLIER[selectedSize];
-  const finalPrice = basePrice + selectedMilk.price; // цена, показанная на странице товара (1 напиток, база)
+  const finalPrice = basePrice + selectedMilk.price;
 
   const handleOrderClick = () => {
-    // Проверяем авторизацию при клике на "Заказать"
     if (!getCurrentUser()) {
       setShowAuthBanner(true);
       return;
     }
-    // Открываем попап настройки напитка(ов) вместо мгновенного добавления в корзину
     setCups([makeDefaultCup(selectedMilk)]);
     setShowConfigModal(true);
   };
 
   const handleConfirmOrder = (configuredCups: CupConfig[]) => {
-    setShowConfigModal(false);
-    setIsAdding(true);
-
     const savedCart = localStorage.getItem('robo_cart');
     let cartList: any[] = [];
     if (savedCart) {
@@ -111,10 +151,19 @@ export default function ProductView({ product }: ProductViewProps) {
       cartList.push(newCartItem);
     });
 
-    localStorage.setItem('robo_cart', JSON.stringify(cartList));
-    window.dispatchEvent(new Event('cart_updated'));
-
-    setTimeout(() => setIsAdding(false), 1200);
+    try {
+      localStorage.setItem('robo_cart', JSON.stringify(cartList));
+      window.dispatchEvent(new Event('cart_updated'));
+      
+      setShowConfigModal(false);
+      setIsAdding(true);
+      setTimeout(() => setIsAdding(false), 1200);
+      return true;
+    } catch (e) {
+      console.error('Квота хранилища превышена:', e);
+      alert('Ошибка: Недостаточно памяти в браузере. Попробуйте очистить корзину или загрузить другое фото.');
+      return false;
+    }
   };
 
   return (
@@ -253,7 +302,7 @@ export default function ProductView({ product }: ProductViewProps) {
 
       <Footer />
 
-      {/* БАННЕР "ЧТОБ ЗАКАЗАТЬ ТОВАР ЗАРЕГИСТРИРУЙТЕСЬ" */}
+      {/* БАННЕР АВТОРИЗАЦИИ */}
       {showAuthBanner && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out_both]">
           <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-white p-6 sm:p-8 text-center shadow-2xl animate-[scaleUp_0.3s_ease-out_both]">
@@ -271,11 +320,7 @@ export default function ProductView({ product }: ProductViewProps) {
               📝
             </div>
             
-            <h3 className="mb-3 text-xl font-extrabold text-zinc-900">
-              Внимание
-            </h3>
-            
-            {/* Точный текст пользователя */}
+            <h3 className="mb-3 text-xl font-extrabold text-zinc-900">Внимание</h3>
             <p className="mb-8 text-base font-medium text-zinc-600 leading-relaxed">
               Чтоб заказать товар зарегистрируйтесь
             </p>
@@ -290,7 +335,7 @@ export default function ProductView({ product }: ProductViewProps) {
         </div>
       )}
 
-      {/* ПОПАП НАСТРОЙКИ НАПИТКА(ОВ) */}
+      {/* ПОПАП НАСТРОЙКИ НАПИТКА */}
       {showConfigModal && (
         <DrinkConfigModal
           product={product}
@@ -343,7 +388,7 @@ function DrinkConfigModal({
   basePrice: number;
   initialCups: CupConfig[];
   onClose: () => void;
-  onConfirm: (cups: CupConfig[]) => void;
+  onConfirm: (cups: CupConfig[]) => boolean;
 }) {
   const [cups, setCups] = useState<CupConfig[]>(initialCups);
   const [closing, setClosing] = useState(false);
@@ -373,8 +418,10 @@ function DrinkConfigModal({
   const totalPrice = cups.reduce((sum, c) => sum + cupPrice(c), 0);
 
   const handleConfirmClick = () => {
-    setClosing(true);
-    setTimeout(() => onConfirm(cups), 180);
+    const success = onConfirm(cups);
+    if (success) {
+      setClosing(true);
+    }
   };
 
   return (
@@ -386,16 +433,12 @@ function DrinkConfigModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[88vh] sm:max-w-xl sm:rounded-3xl ${
-          closing ? 'animate-[sheetOut_0.18s_ease-in_forwards]' : 'animate-[sheetIn_0.25s_ease-out]'
-        }`}
+        className={`relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[88vh] sm:max-w-xl sm:rounded-3xl`}
       >
-        {/* Ручка для свайпа — только на мобильных */}
         <div className="flex shrink-0 justify-center pb-1 pt-2.5 sm:hidden">
           <span className="h-1.5 w-10 rounded-full bg-zinc-300" />
         </div>
 
-        {/* Шапка */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-5 pb-4 pt-2 sm:px-7 sm:pt-6">
           <div>
             <h2 className="text-lg font-extrabold text-zinc-900 sm:text-xl">Настройка напитка</h2>
@@ -412,7 +455,6 @@ function DrinkConfigModal({
           </button>
         </div>
 
-        {/* Тело: список чашек */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
           <div className="mb-4 flex items-center justify-between">
             <span className="font-mono text-[11px] font-black uppercase tracking-wider text-zinc-400">
@@ -461,7 +503,6 @@ function DrinkConfigModal({
           </div>
         </div>
 
-        {/* Футер: итог и подтверждение */}
         <div className="shrink-0 border-t border-zinc-100 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-7 sm:py-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-bold text-zinc-900">Итого:</span>
@@ -497,13 +538,25 @@ function CupConfigCard({
   price: number;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handlePhotoSelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange({ photo: reader.result as string });
-    reader.readAsDataURL(file);
+
+    setLoading(true);
+    try {
+      // Сжимаем фото до адаптивных 500x500 пикселей перед записью в стейт
+      const compressedBase64 = await compressImage(file, 500, 500, 0.7);
+      onChange({ photo: compressedBase64 });
+    } catch (err) {
+      console.error(err);
+      alert('Не удалось обработать и сжать изображение. Попробуйте еще раз.');
+    } finally {
+      setLoading(false);
+      // Сбрасываем инпут, чтобы можно было загрузить то же самое фото
+      if (e.target) e.target.value = '';
+    }
   };
 
   return (
@@ -525,7 +578,7 @@ function CupConfigCard({
         </div>
       )}
 
-      {/* Молоко — подтверждение выбора */}
+      {/* Молоко */}
       <div className="mb-4">
         <h4 className="mb-2 font-mono text-[10px] font-black uppercase tracking-wider text-zinc-400">
           Молоко
@@ -548,7 +601,7 @@ function CupConfigCard({
         </div>
       </div>
 
-      {/* Сахар — ползунок */}
+      {/* Сахар */}
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between">
           <h4 className="font-mono text-[10px] font-black uppercase tracking-wider text-zinc-400">
@@ -594,7 +647,7 @@ function CupConfigCard({
         </div>
       </div>
 
-      {/* Печать фото на пенке */}
+      {/* Печать фото */}
       <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -604,16 +657,18 @@ function CupConfigCard({
               <p className="font-mono text-[10px] text-zinc-400">+{PRINT_PRICE} ₸</p>
             </div>
           </div>
+          
+          {/* Исправленный переключатель */}
           <button
             onClick={() => onChange({ printEnabled: !cup.printEnabled, photo: !cup.printEnabled ? cup.photo : null })}
             aria-label="Включить печать фото"
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
+            className={`flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors duration-200 ${
               cup.printEnabled ? 'bg-orange-500' : 'bg-zinc-200'
             }`}
           >
             <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                cup.printEnabled ? 'translate-x-6' : 'translate-x-1'
+              className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                cup.printEnabled ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
           </button>
@@ -621,11 +676,16 @@ function CupConfigCard({
 
         {cup.printEnabled && (
           <div className="mt-3.5 border-t border-zinc-100 pt-3.5">
-            {cup.photo ? (
+            {loading ? (
+              <div className="flex h-20 w-full flex-col items-center justify-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                <span className="font-mono text-[9px] font-bold text-zinc-400 uppercase">Оптимизация размера...</span>
+              </div>
+            ) : cup.photo ? (
               <div className="flex items-center gap-3">
                 <img src={cup.photo} alt="Фото для печати" className="h-14 w-14 rounded-lg object-cover border border-zinc-200" />
                 <div className="flex-grow">
-                  <p className="text-xs font-bold text-zinc-900">Фото загружено</p>
+                  <p className="text-xs font-bold text-zinc-900">Фото оптимизировано</p>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="font-mono text-[10px] font-bold text-orange-500 hover:underline"
