@@ -34,23 +34,58 @@ function readCartCount(): number {
 // Логотип KIRO — голова робота с "ушками", антеннами и улыбающимися глазами
 function KiroLogo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* антенны */}
-      <rect x="42.5" y="8" width="5" height="14" rx="2.5" fill="currentColor" />
-      <rect x="57.5" y="6" width="5" height="16" rx="2.5" fill="currentColor" />
-      <rect x="72.5" y="8" width="5" height="14" rx="2.5" fill="currentColor" />
+    <div className={`relative inline-block ${className}`}>
+      {/* Добавлен preserveAspectRatio для идеального масштабирования */}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+        <defs>
+          <filter id="neon-glow-intense" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" result="blur1" />
+            <feGaussianBlur stdDeviation="3" result="blur2" />
+            <feGaussianBlur stdDeviation="1" result="blur3" />
+            <feMerge>
+              <feMergeNode in="blur1" />
+              <feMergeNode in="blur2" />
+              <feMergeNode in="blur3" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-      {/* "ушки" */}
-      <rect x="2" y="50" width="13" height="28" rx="6.5" fill="currentColor" />
-      <rect x="105" y="50" width="13" height="28" rx="6.5" fill="currentColor" />
+        {/* Антенны */}
+        <g fill="#18181B">
+          <rect x="134" y="10" width="8" height="22" rx="4" />
+          <rect x="156" y="10" width="8" height="22" rx="4" />
+          <rect x="178" y="10" width="8" height="22" rx="4" />
+        </g>
 
-      {/* голова */}
-      <rect x="15" y="28" width="90" height="72" rx="28" stroke="currentColor" strokeWidth="7" />
+        {/* Боковые крепления */}
+        <rect x="36" y="90" width="10" height="54" rx="5" fill="#18181B" />
+        <rect x="274" y="90" width="10" height="54" rx="5" fill="#18181B" />
 
-      {/* глаза */}
-      <path d="M33 74 Q46 58 59 74" stroke="#2F8CFF" strokeWidth="7" strokeLinecap="round" fill="none" />
-      <path d="M61 74 Q74 58 87 74" stroke="#2F8CFF" strokeWidth="7" strokeLinecap="round" fill="none" />
-    </svg>
+        {/* Голова (основа) */}
+        <rect x="56" y="48" width="208" height="136" rx="44" fill="#18181B" />
+
+        {/* Верхние индикаторы */}
+        <g fill="#09090B">
+          <rect x="136" y="58" width="6" height="14" rx="3" />
+          <rect x="157" y="58" width="6" height="14" rx="3" />
+          <rect x="178" y="58" width="6" height="14" rx="3" />
+        </g>
+
+        {/* Глаза (Неон) */}
+        <g fill="none" strokeLinecap="round">
+          {/* Левый глаз */}
+          <path d="M 98 126 A 18 18 0 0 1 138 126" stroke="#00F0FF" strokeWidth="8" filter="url(#neon-glow-intense)" opacity="0.85" />
+          <path d="M 98 126 A 18 18 0 0 1 138 126" stroke="#00E0FF" strokeWidth="4" />
+          <path d="M 98 126 A 18 18 0 0 1 138 126" stroke="#E0F7FF" strokeWidth="1.5" />
+
+          {/* Правый глаз */}
+          <path d="M 182 126 A 18 18 0 0 1 222 126" stroke="#00F0FF" strokeWidth="8" filter="url(#neon-glow-intense)" opacity="0.85" />
+          <path d="M 182 126 A 18 18 0 0 1 222 126" stroke="#00E0FF" strokeWidth="4" />
+          <path d="M 182 126 A 18 18 0 0 1 222 126" stroke="#E0F7FF" strokeWidth="1.5" />
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -112,10 +147,10 @@ export function Header() {
           </button>
 
           <Link href="/" className="flex items-center gap-2 transition-transform duration-300 hover:scale-[1.02]">
-            <KiroLogo className="h-8 w-8 shrink-0 text-zinc-900 sm:h-9 sm:w-9" />
+            <KiroLogo className="h-12 w-12 shrink-0 text-zinc-900 sm:h-14 sm:w-14" />
             <span className="flex flex-col leading-none">
               <span className="font-extrabold text-2xl tracking-tight">KIRO</span>
-              <span className="mt-0.5 hidden font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:block">
+              <span className="mt-0.5 font-mono text-[9px] sm:text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                 New-Gen Coffee
               </span>
             </span>

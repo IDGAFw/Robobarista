@@ -159,3 +159,7 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.eye-glow {
+  filter: drop-shadow(0 0 8px #3b82f6);
+}
