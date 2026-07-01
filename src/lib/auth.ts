@@ -9,9 +9,12 @@
 export type User = {
   name: string;
   phone: string;
+  email?: string;
   password: string; // ВАЖНО: в реальном проекте пароль никогда не хранится в открытом виде
   createdAt: string;
 };
+
+
 
 const USERS_KEY = 'roboBarista:users';
 const SESSION_KEY = 'roboBarista:session';
@@ -59,4 +62,19 @@ export function getCurrentUser(): User | null {
   const phone = localStorage.getItem(SESSION_KEY);
   if (!phone) return null;
   return readUsers().find((u) => u.phone === phone) ?? null;
+}
+
+export function updateUser(updates: Partial<User>): User | null {
+  if (typeof window === 'undefined') return null;
+  const current = localStorage.getItem('robo_user');
+  if (!current) return null;
+
+  try {
+    const user: User = JSON.parse(current);
+    const updatedUser = { ...user, ...updates };
+    localStorage.setItem('robo_user', JSON.stringify(updatedUser));
+    return updatedUser;
+  } catch {
+    return null;
+  }
 }
