@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { 
   User as UserIcon, ShoppingBag, CreditCard, Settings, 
   Plus, Trash2, LogOut, Edit2, Save, X, CreditCard as CardIcon
@@ -36,19 +36,27 @@ const stampContainerVariants = {
   },
 };
 
-const stampVariants = {
+const stampVariants: Variants = {
   hidden: { scale: 0.5, opacity: 0, rotate: -20 },
   show: { 
-    scale: 1, opacity: 1, rotate: 0, 
-    transition: { type: 'spring', stiffness: 300, damping: 20 } 
+    scale: 1, 
+    opacity: 1, 
+    rotate: 0, 
+    transition: { 
+      type: 'spring' as const, // <-- as const принудительно указывает, что это 'spring', а не просто string
+      stiffness: 300, 
+      damping: 20 
+    } 
   },
 };
 
-const tabVariants = {
+const tabVariants : Variants = {
   hidden: { opacity: 0, y: 10, scale: 0.98 },
   enter: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
   exit: { opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.2, ease: 'easeIn' } },
 };
+
+
 
 // === Утилиты ===
 function initials(name: string) {

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Footer from '@/components/layout/footer';
 import { ChevronLeft, ChevronRight, Search, Share2, Tag, X } from 'lucide-react';
-import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, type PanInfo, Variants } from 'framer-motion';
 
 type NewsTag = 'all' | 'product' | 'promo' | 'company' | 'event';
 
@@ -188,9 +188,17 @@ const gridVariants = {
   exit: { opacity: 0, y: -8, transition: { duration: 0.18 } },
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: 'spring' as const, // <-- Ключевое изменение: 'as const'
+      stiffness: 260, 
+      damping: 24 
+    } 
+  },
 };
 
 function useReveal<T extends HTMLElement>() {
@@ -324,10 +332,20 @@ const backdropVariants = {
   exit: { opacity: 0, transition: { duration: 0.18 } },
 };
 
-const sheetVariants = {
+const sheetVariants: Variants = {
   hidden: { opacity: 0, y: 40, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 320, damping: 28 } },
-  exit: { opacity: 0, y: 20, scale: 0.97, transition: { duration: 0.18 } },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1, 
+    transition: { type: 'spring' as const, stiffness: 320, damping: 28 } 
+  },
+  exit: { 
+    opacity: 0, 
+    y: 20, 
+    scale: 0.97, 
+    transition: { duration: 0.18 } 
+  },
 };
 
 function NewsModal({

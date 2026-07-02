@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, type PanInfo, Variants } from 'framer-motion';
 import Footer from '@/components/layout/footer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ const gridVariants = {
   exit:  { opacity: 0, y: -8, transition: { duration: 0.18 } },
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
   show:   { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 24 } },
 };
@@ -213,12 +213,12 @@ const stampContainerVariants = {
   show:   { opacity: 1, y: 0, transition: { duration: 0.5, staggerChildren: 0.1, delayChildren: 0.2 } },
 };
 
-const stampVariants = {
+const stampVariants : Variants = {
   hidden: { scale: 0, opacity: 0 },
   show:   { scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } },
 };
 
-const modalVariants = {
+const modalVariants : Variants = {
   hidden: { opacity: 0, y: 40, scale: 0.97 },
   show:   { opacity: 1, y: 0,  scale: 1, transition: { type: 'spring', stiffness: 320, damping: 28 } },
   exit:   { opacity: 0, y: 20, scale: 0.97, transition: { duration: 0.18 } },
