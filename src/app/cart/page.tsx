@@ -89,7 +89,7 @@ function formatPrice(value: number) {
 }
 
 function formatCardNumber(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 19);
+  const digits = value.replace(/\D/g, '').slice(0, 16);
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
 }
 
