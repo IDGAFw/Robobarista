@@ -1,8 +1,6 @@
 /**
  * Ultimate Checkout Cart Page
  * Location: src/app/cart/page.tsx
- * Features: sticky summary, mobile checkout bar, payment modal, saved cards,
- * add-card flow, complete order breakdown, print-on-foam details.
  */
 
 'use client';
@@ -26,6 +24,7 @@ import {
   Sparkles,
   Trash2,
   X,
+  Ticket,
 } from 'lucide-react';
 import Footer from '@/components/layout/footer';
 import { getCurrentUser, type User } from '@/lib/auth';
@@ -47,6 +46,7 @@ type Totals = {
   subtotal: number;
   serviceFee: number;
   discount: number;
+  promoDiscount: number;
   total: number;
 };
 
@@ -161,6 +161,11 @@ export default function CartPage() {
   const [paymentMode, setPaymentMode] = useState<'saved' | 'new'>('saved');
   const [orderPlaced, setOrderPlaced] = useState(false);
 
+  // Состояния промокода
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; amount: number } | null>(null);
+  const [promoError, setPromoError] = useState('');
+
   useEffect(() => {
     const currentUser = getCurrentUser();
     const savedCart = localStorage.getItem('robo_cart');
@@ -228,15 +233,32 @@ export default function CartPage() {
     syncCart(cartItems.filter((item) => item.cartId !== cartId));
   };
 
+  // Обработчик промокода
+  const handleApplyPromo = () => {
+    setPromoError('');
+    if (!promoCode.trim()) return;
+
+    // Хардкод для примера (замени на запрос к API)
+    if (promoCode.trim().toUpperCase() === 'ROBO20') {
+      setAppliedPromo({ code: 'ROBO20', amount: 200 });
+      setPromoCode('');
+    } else {
+      setPromoError('Промокод не найден или недействителен');
+      setAppliedPromo(null);
+    }
+  };
+
   const itemCount = useMemo(() => cartItems.reduce((acc, item) => acc + item.quantity, 0), [cartItems]);
 
   const totals = useMemo<Totals>(() => {
     const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const serviceFee = cartItems.length > 0 ? 50 : 0;
     const discount = subtotal >= 1000 ? 120 : 0;
-    const total = Math.max(0, subtotal + serviceFee - discount);
-    return { subtotal, serviceFee, discount, total };
-  }, [cartItems]);
+    const promoDiscount = appliedPromo ? appliedPromo.amount : 0;
+    const total = Math.max(0, subtotal + serviceFee - discount - promoDiscount);
+    
+    return { subtotal, serviceFee, discount, promoDiscount, total };
+  }, [cartItems, appliedPromo]);
 
   const openCheckout = () => {
     setOrderPlaced(false);
@@ -265,6 +287,7 @@ export default function CartPage() {
     setOrderPlaced(true);
     setTimeout(() => {
       syncCart([]);
+      setAppliedPromo(null); // Сбрасываем промокод после оплаты
       setCheckoutOpen(false);
       setOrderPlaced(false);
     }, 1300);
@@ -319,7 +342,17 @@ export default function CartPage() {
               </div>
 
               <div className="w-full animate-[fadeUp_0.6s_ease-out_both] lg:sticky lg:top-28 lg:w-1/3">
-                <OrderSummary totals={totals} itemCount={itemCount} onCheckout={openCheckout} />
+                <OrderSummary 
+                  totals={totals} 
+                  itemCount={itemCount} 
+                  onCheckout={openCheckout}
+                  promoCode={promoCode}
+                  onPromoCodeChange={setPromoCode}
+                  onApplyPromo={handleApplyPromo}
+                  appliedPromo={appliedPromo}
+                  promoError={promoError}
+                  onRemovePromo={() => setAppliedPromo(null)}
+                />
               </div>
             </div>
           )}
@@ -355,6 +388,7 @@ export default function CartPage() {
           selectedCardId={selectedCardId}
           paymentMode={paymentMode}
           orderPlaced={orderPlaced}
+          appliedPromo={appliedPromo}
           onPaymentModeChange={setPaymentMode}
           onSelectCard={setSelectedCardId}
           onAddCard={handleAddCard}
@@ -365,40 +399,19 @@ export default function CartPage() {
 
       <style jsx global>{`
         @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
-
         @keyframes scaleUp {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+          from { opacity: 0; transform: scale(0.96) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
-
         @media (prefers-reduced-motion: reduce) {
-          *,
-          *::before,
-          *::after {
+          *, *::before, *::after {
             animation-duration: 0.001ms !important;
             transition-duration: 0.001ms !important;
           }
@@ -496,7 +509,27 @@ function CartItemCard({
   );
 }
 
-function OrderSummary({ totals, itemCount, onCheckout }: { totals: Totals; itemCount: number; onCheckout: () => void }) {
+function OrderSummary({ 
+  totals, 
+  itemCount, 
+  onCheckout,
+  promoCode,
+  onPromoCodeChange,
+  onApplyPromo,
+  appliedPromo,
+  promoError,
+  onRemovePromo
+}: { 
+  totals: Totals; 
+  itemCount: number; 
+  onCheckout: () => void;
+  promoCode: string;
+  onPromoCodeChange: (val: string) => void;
+  onApplyPromo: () => void;
+  appliedPromo: { code: string; amount: number } | null;
+  promoError: string;
+  onRemovePromo: () => void;
+}) {
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
       <div className="border-b border-zinc-100 bg-zinc-950 p-5 text-white sm:p-6">
@@ -507,10 +540,46 @@ function OrderSummary({ totals, itemCount, onCheckout }: { totals: Totals; itemC
       </div>
 
       <div className="p-5 sm:p-6">
+        {/* Блок промокода */}
+        <div className="mb-5 flex flex-col gap-3 rounded-2xl bg-zinc-50 p-4">
+          <label className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <Ticket className="h-3.5 w-3.5" /> Промокод
+          </label>
+          
+          {appliedPromo ? (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div>
+                <span className="block font-mono text-xs font-black text-emerald-700">{appliedPromo.code}</span>
+                <span className="block text-xs text-emerald-600">Скидка применена!</span>
+              </div>
+              <button onClick={onRemovePromo} className="text-emerald-500 hover:text-emerald-700">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={promoCode}
+                onChange={(e) => onPromoCodeChange(e.target.value.toUpperCase())}
+                placeholder="ВВЕДИТЕ КОД (ROBO20)"
+                className="flex-grow rounded-xl border border-zinc-200 bg-white px-3 py-2.5 font-mono text-xs font-bold outline-none transition-colors focus:border-orange-400"
+              />
+              <button
+                onClick={onApplyPromo}
+                className="rounded-xl bg-zinc-900 px-4 font-mono text-xs font-bold text-white transition-colors hover:bg-orange-500 active:scale-95"
+              >
+                ОК
+              </button>
+            </div>
+          )}
+          {promoError && <p className="text-xs font-medium text-red-500">{promoError}</p>}
+        </div>
+
         <div className="flex flex-col gap-3 border-b border-zinc-100 pb-5">
           <SummaryRow label={`Товары (${itemCount})`} value={formatPrice(totals.subtotal)} />
           <SummaryRow label="Сбор робототехники" value={formatPrice(totals.serviceFee)} icon={<Sparkles className="h-3.5 w-3.5 text-orange-400" />} />
           {totals.discount > 0 && <SummaryRow label="Авто-скидка" value={`-${formatPrice(totals.discount)}`} tone="good" />}
+          {totals.promoDiscount > 0 && <SummaryRow label={`Промокод`} value={`-${formatPrice(totals.promoDiscount)}`} tone="good" icon={<Ticket className="h-3.5 w-3.5" />} />}
         </div>
 
         <div className="mt-5 flex items-end justify-between">
@@ -564,6 +633,7 @@ function CheckoutModal({
   selectedCardId,
   paymentMode,
   orderPlaced,
+  appliedPromo,
   onPaymentModeChange,
   onSelectCard,
   onAddCard,
@@ -578,6 +648,7 @@ function CheckoutModal({
   selectedCardId: string;
   paymentMode: 'saved' | 'new';
   orderPlaced: boolean;
+  appliedPromo: { code: string; amount: number } | null;
   onPaymentModeChange: (mode: 'saved' | 'new') => void;
   onSelectCard: (id: string) => void;
   onAddCard: (card: NewCardForm) => string | null;
@@ -780,7 +851,8 @@ function CheckoutModal({
               <div className="space-y-3 border-b border-zinc-100 pb-4">
                 <SummaryRow label="Товары" value={formatPrice(totals.subtotal)} />
                 <SummaryRow label="Сбор робототехники" value={formatPrice(totals.serviceFee)} />
-                {totals.discount > 0 && <SummaryRow label="Скидка" value={`-${formatPrice(totals.discount)}`} tone="good" />}
+                {totals.discount > 0 && <SummaryRow label="Авто-скидка" value={`-${formatPrice(totals.discount)}`} tone="good" />}
+                {totals.promoDiscount > 0 && <SummaryRow label={`Промокод (${appliedPromo?.code})`} value={`-${formatPrice(totals.promoDiscount)}`} tone="good" icon={<Ticket className="h-3.5 w-3.5" />} />}
               </div>
               <div className="mt-4 flex items-end justify-between">
                 <span className="font-bold text-zinc-900">Итого к оплате</span>
