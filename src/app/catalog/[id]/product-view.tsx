@@ -1,3 +1,5 @@
+// src/app/catalog/[id]/product-view.tsx
+
 'use client';
 
 import { useState, useRef, type ChangeEvent } from 'react';
