@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Search, ShoppingCart, Heart, User, MapPin, Menu, X } from 'lucide-react';
+import { ShoppingCart, Heart, User, MapPin, Menu, X } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 
 function initials(name: string) {
@@ -184,9 +184,6 @@ export function Header() {
 
         {/* Пользовательские действия */}
         <div className="flex items-center gap-4 sm:gap-5">
-          <button className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110 active:scale-95">
-            <Search className="h-5 w-5" />
-          </button>
 
           <Link href="/favorites" className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110 active:scale-95 hidden sm:block">
             <Heart className="h-5 w-5" />
